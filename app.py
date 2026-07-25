@@ -234,108 +234,368 @@ INDEX_HTML = """
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TEN Capital — Pitch Deck Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --navy: #1F3864; --blue: #2E75B6; --gold: #FFC000;
-    --ink: #1b1b1b; --muted: #666; --line: #dfe3ea; --bg: #f5f7fa;
+  :root{
+    --navy-950:#0B1526; --navy-900:#101E33; --navy-800:#16283F; --navy-700:#1E354F;
+    --coral:#EE5A4E; --coral-soft:#F0776C; --amber:#F3A22A; --teal:#35BEBB;
+    --ink-100:#F3F6FA; --ink-300:#C4D0E0; --ink-500:#7E90A8; --ink-600:#5C6E86;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 "Segoe UI", Arial, system-ui, sans-serif;
+  *{ box-sizing:border-box; }
+  html, body{
+    margin:0; padding:0; min-height:100vh;
+    background:var(--navy-950); color:var(--ink-100);
+    font-family:'Inter', "Segoe UI", system-ui, sans-serif;
+    font-size:15px; line-height:1.55;
   }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 20px 64px; }
-  header { text-align: center; margin-bottom: 32px; }
-  h1 { margin: 0; font-size: 26px; letter-spacing: .12em; color: var(--navy); }
-  .sub { color: var(--blue); font-size: 15px; margin-top: 6px; }
-  .card {
-    background: #fff; border: 1px solid var(--line); border-radius: 10px;
-    padding: 28px; box-shadow: 0 1px 3px rgba(31,56,100,.06);
+  body{ display:flex; align-items:flex-start; justify-content:center; padding:48px 20px 40px; position:relative; overflow-x:hidden; }
+
+  /* ambient tri-color glow, echoing the logo's three figures */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(480px 380px at 14% 8%, rgba(238,90,78,0.16), transparent 60%),
+      radial-gradient(480px 380px at 86% 6%, rgba(243,162,42,0.13), transparent 60%),
+      radial-gradient(560px 420px at 50% 100%, rgba(53,190,187,0.14), transparent 60%);
   }
-  label { display: block; font-weight: 600; font-size: 13px; color: var(--navy); margin-bottom: 6px; }
-  input[type=text], input[type=file] {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
-    border-radius: 6px; font: inherit; background: #fff;
+
+  .stage{ position:relative; z-index:1; width:100%; max-width:620px; }
+
+  /* brand lockup */
+  .brand{ display:flex; align-items:center; gap:12px; margin-bottom:28px; padding-left:4px; }
+  .brand-mark{ width:34px; height:34px; flex-shrink:0; }
+  .brand-word{
+    font-family:'Sora', system-ui, sans-serif; font-weight:800; font-size:15px;
+    letter-spacing:.04em; line-height:1.15; text-transform:uppercase;
   }
-  .field { margin-bottom: 18px; }
-  .hint { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
-  button {
-    width: 100%; padding: 12px 16px; border: 0; border-radius: 6px;
-    background: var(--navy); color: #fff; font: 600 15px inherit; cursor: pointer;
+  .brand-word span{
+    display:block; font-weight:600; font-size:10px; letter-spacing:.22em;
+    color:var(--ink-500); margin-top:2px;
   }
-  button:disabled { background: #9aa5b8; cursor: not-allowed; }
-  #status { margin-top: 24px; display: none; }
-  .bar { height: 8px; background: #e8ecf3; border-radius: 4px; overflow: hidden; }
-  .bar > i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .4s ease; }
-  .steps { list-style: none; margin: 16px 0 0; padding: 0; }
-  .steps li { padding: 5px 0 5px 26px; position: relative; color: var(--muted); font-size: 14px; }
-  .steps li::before {
-    content: "○"; position: absolute; left: 4px; color: #c3cbd9;
+
+  .card{
+    background:linear-gradient(180deg, var(--navy-900) 0%, var(--navy-800) 100%);
+    border:1px solid var(--navy-700); border-radius:20px;
+    padding:44px 44px 36px; position:relative; overflow:hidden;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.03);
   }
-  .steps li.done { color: var(--ink); }
-  .steps li.done::before { content: "●"; color: #375623; }
-  .steps li.active { color: var(--navy); font-weight: 600; }
-  .steps li.active::before { content: "●"; color: var(--gold); }
-  .done-box, .error-box { margin-top: 20px; padding: 16px; border-radius: 6px; font-size: 14px; }
-  .done-box { background: #E2EFDA; color: #375623; }
-  .error-box { background: #FFCCCC; color: #C00000; white-space: pre-wrap; }
-  a.download {
-    display: inline-block; margin-top: 10px; padding: 10px 18px; border-radius: 6px;
-    background: var(--gold); color: var(--navy); font-weight: 700; text-decoration: none;
+  .card::after{
+    content:""; position:absolute; top:-2px; left:44px; right:44px; height:2px; border-radius:2px;
+    background:linear-gradient(90deg, var(--coral), var(--amber), var(--teal));
   }
-  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 28px; }
+
+  .eyebrow{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11px;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--teal); margin-bottom:14px;
+  }
+  .eyebrow::before{
+    content:""; width:6px; height:6px; border-radius:50%; background:var(--teal);
+    box-shadow:0 0 0 3px rgba(53,190,187,.18);
+  }
+
+  h1{
+    font-family:'Sora', system-ui, sans-serif; font-size:28px; font-weight:700;
+    line-height:1.25; letter-spacing:-.01em; margin:0 0 12px;
+  }
+  h1 .arrow{ color:var(--ink-500); font-weight:400; margin:0 4px; }
+  h1 .to{
+    background:linear-gradient(90deg, var(--coral-soft), var(--amber));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lede{ color:var(--ink-300); font-size:15px; margin:0 0 28px; max-width:46ch; }
+
+  /* fields */
+  .field{ margin-bottom:16px; }
+  label.field-label{
+    display:block; font-family:'JetBrains Mono', ui-monospace, monospace;
+    font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-500); margin-bottom:8px;
+  }
+  input[type=text]{
+    width:100%; padding:12px 14px; border-radius:10px; font:inherit;
+    background:rgba(255,255,255,.02); border:1px solid var(--navy-700); color:var(--ink-100);
+    transition:border-color .18s ease, background .18s ease;
+  }
+  input[type=text]::placeholder{ color:var(--ink-600); }
+  input[type=text]:focus{ outline:none; border-color:var(--teal); background:rgba(53,190,187,.04); }
+
+  /* dropzone */
+  .dropzone{
+    display:block; border:1.5px dashed var(--navy-700); border-radius:14px;
+    padding:34px 24px; text-align:center; cursor:pointer;
+    background:rgba(255,255,255,.015);
+    transition:border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .dropzone:hover, .dropzone:focus-within{ border-color:var(--teal); background:rgba(53,190,187,.05); }
+  .dropzone:active{ transform:scale(.997); }
+  .dropzone.dragover{ border-color:var(--amber); background:rgba(243,162,42,.07); }
+  .dropzone.has-file{ border-style:solid; border-color:var(--teal); background:rgba(53,190,187,.06); }
+
+  .dropzone-icon{
+    width:38px; height:38px; margin:0 auto 14px; border-radius:10px;
+    background:linear-gradient(135deg, rgba(238,90,78,.16), rgba(243,162,42,.16));
+    border:1px solid var(--navy-700); display:flex; align-items:center; justify-content:center;
+  }
+  .dropzone.has-file .dropzone-icon{
+    background:linear-gradient(135deg, rgba(53,190,187,.22), rgba(53,190,187,.10));
+    border-color:rgba(53,190,187,.4);
+  }
+  .dropzone-icon svg{ width:18px; height:18px; }
+  .dropzone-title{ font-size:15px; font-weight:600; margin-bottom:6px; word-break:break-word; }
+  .dropzone-sub{
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11.5px; color:var(--ink-500);
+  }
+  .dropzone-sub b{ color:var(--ink-300); font-weight:500; }
+  .file-input{
+    position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;
+  }
+
+  /* CTA */
+  .cta{
+    width:100%; margin-top:22px; padding:16px 20px; border:0; border-radius:12px;
+    background:linear-gradient(90deg, var(--coral) 0%, var(--coral-soft) 45%, var(--amber) 100%);
+    color:#17130E; font-family:'Sora', system-ui, sans-serif; font-weight:700; font-size:15px;
+    cursor:pointer; transition:filter .15s ease, transform .15s ease;
+    box-shadow:0 10px 24px -10px rgba(238,90,78,.45);
+  }
+  .cta:hover:not(:disabled){ filter:brightness(1.06); transform:translateY(-1px); }
+  .cta:active:not(:disabled){ transform:translateY(0); }
+  .cta:disabled{
+    background:var(--navy-700); color:var(--ink-500); box-shadow:none; cursor:not-allowed;
+  }
+
+  /* progress */
+  .status{ display:none; margin-top:28px; padding-top:24px; border-top:1px solid var(--navy-700); }
+  .status.on{ display:block; }
+  .status-head{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-500);
+  }
+  .bar{ height:6px; border-radius:3px; background:var(--navy-950); overflow:hidden; }
+  .bar > i{
+    display:block; height:100%; width:0; border-radius:3px; transition:width .5s ease;
+    background:linear-gradient(90deg, var(--coral), var(--amber), var(--teal));
+  }
+  .steps{ list-style:none; margin:18px 0 0; padding:0; }
+  .steps li{
+    position:relative; padding:6px 0 6px 24px; font-size:14px; color:var(--ink-600);
+    transition:color .2s ease;
+  }
+  .steps li::before{
+    content:""; position:absolute; left:2px; top:13px; width:7px; height:7px;
+    border-radius:50%; background:var(--navy-700);
+  }
+  .steps li.done{ color:var(--ink-300); }
+  .steps li.done::before{ background:var(--teal); }
+  .steps li.active{ color:var(--ink-100); font-weight:600; }
+  .steps li.active::before{ background:var(--amber); box-shadow:0 0 0 4px rgba(243,162,42,.15); animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 50%{ box-shadow:0 0 0 7px rgba(243,162,42,0); } }
+
+  /* result */
+  .result:empty{ display:none; }
+  .done-box, .error-box{ margin-top:22px; padding:18px; border-radius:12px; font-size:14px; }
+  .done-box{ background:rgba(53,190,187,.09); border:1px solid rgba(53,190,187,.32); }
+  .done-box strong{ font-family:'Sora', system-ui, sans-serif; }
+  .error-box{
+    background:rgba(238,90,78,.09); border:1px solid rgba(238,90,78,.34);
+    color:var(--ink-300); white-space:pre-wrap;
+  }
+  .error-box strong{ color:var(--coral-soft); font-family:'Sora', system-ui, sans-serif; }
+  a.download{
+    display:inline-block; margin-top:12px; padding:12px 22px; border-radius:10px;
+    background:linear-gradient(90deg, var(--coral) 0%, var(--coral-soft) 45%, var(--amber) 100%);
+    color:#17130E; font-family:'Sora', system-ui, sans-serif; font-weight:700;
+    font-size:14px; text-decoration:none;
+    box-shadow:0 10px 24px -10px rgba(238,90,78,.45);
+  }
+  a.download:hover{ filter:brightness(1.06); }
+
+  .disclosure{
+    margin-top:22px; padding-top:18px; border-top:1px solid var(--navy-700);
+    font-size:12px; line-height:1.6; color:var(--ink-500);
+  }
+  .disclosure code{
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11.5px;
+    background:var(--navy-950); border:1px solid var(--navy-700); color:var(--ink-300);
+    padding:2px 6px; border-radius:5px;
+  }
+  footer{
+    text-align:center; margin-top:22px;
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--ink-600);
+  }
+
+  :focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+
+  @media (max-width:480px){
+    body{ padding:32px 14px; }
+    .card{ padding:32px 24px 28px; }
+    .card::after{ left:24px; right:24px; }
+    h1{ font-size:23px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>TEN CAPITAL</h1>
-    <div class="sub">Investor Conviction Ladder — Pitch Deck Analyzer</div>
-  </header>
+<div class="stage">
+
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M50 6 C64 6 74 16 74 16" stroke="var(--amber)" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <path d="M76 66 C76 82 63 92 63 92" stroke="var(--teal)" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <path d="M24 66 C24 82 37 92 37 92" stroke="var(--coral)" stroke-width="11" stroke-linecap="round" fill="none" transform="rotate(180 50 79)"/>
+      <circle cx="50" cy="20" r="11" fill="var(--amber)"/>
+      <circle cx="78" cy="68" r="11" fill="var(--teal)"/>
+      <circle cx="22" cy="68" r="11" fill="var(--coral)"/>
+    </svg>
+    <div class="brand-word">Ten Capital<span>Network</span></div>
+  </div>
 
   <div class="card">
+    <div class="eyebrow">Deck Analyzer</div>
+    <h1>Pitch Deck<span class="arrow">&rarr;</span><span class="to">Conviction Analysis</span></h1>
+    <p class="lede">Upload a deck and get the branded TEN Capital Investor Conviction Ladder report
+      as a Word document, analyzed and scored by Claude.</p>
+
     <form id="form">
       <div class="field">
-        <label for="company">Company name</label>
-        <input type="text" id="company" name="company" placeholder="Leave blank to use the file name">
+        <label class="field-label" for="company">Company name</label>
+        <input type="text" id="company" name="company" autocomplete="organization"
+               placeholder="Leave blank to use the file name">
       </div>
-      <div class="field">
-        <label for="deck">Pitch deck (PDF)</label>
-        <input type="file" id="deck" name="deck" accept="application/pdf" required>
-        <div class="hint">Up to 32 MB. The deck is deleted from the server once the report is built.</div>
-      </div>
-      <button type="submit" id="go">Run conviction analysis</button>
+
+      <label class="dropzone" id="dropzone" for="deck">
+        <div class="dropzone-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--ink-100)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+            <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/>
+          </svg>
+        </div>
+        <div class="dropzone-title" id="dz-title">Click or drop a deck here</div>
+        <div class="dropzone-sub" id="dz-sub"><b>.pdf</b> &nbsp;&middot;&nbsp; up to 32&nbsp;MB</div>
+        <input class="file-input" type="file" id="deck" name="deck" accept="application/pdf,.pdf" required>
+      </label>
+
+      <button class="cta" type="submit" id="go">Run conviction analysis</button>
     </form>
 
-    <div id="status">
+    <div class="status" id="status" aria-live="polite">
+      <div class="status-head"><span id="phase">Analyzing</span><span id="clock">0:00</span></div>
       <div class="bar"><i id="fill"></i></div>
       <ul class="steps" id="steps"></ul>
-      <div id="result"></div>
+    </div>
+    <div class="result" id="result"></div>
+
+    <div class="disclosure">
+      The deck is processed on the server and deleted as soon as the report is built.
+      Finished reports stay downloadable for a limited time — save the <code>.docx</code> when it appears.
     </div>
   </div>
 
-  <footer>Analysis runs on Claude Opus 5 · typically 4–8 minutes · keep this tab open</footer>
+  <footer>Claude Opus 5 &middot; typically 4&ndash;8 minutes &middot; keep this tab open</footer>
 </div>
 
 <script>
 const STEPS = %%STEPS%%;
+const MAX_BYTES = %%MAX_BYTES%%;
+
 const form = document.getElementById('form');
 const statusBox = document.getElementById('status');
 const stepsList = document.getElementById('steps');
 const fill = document.getElementById('fill');
 const result = document.getElementById('result');
 const go = document.getElementById('go');
+const deck = document.getElementById('deck');
+const dropzone = document.getElementById('dropzone');
+const dzTitle = document.getElementById('dz-title');
+const dzSub = document.getElementById('dz-sub');
+const phase = document.getElementById('phase');
+const clock = document.getElementById('clock');
+
+const IDLE_TITLE = dzTitle.textContent;
+const IDLE_SUB = dzSub.innerHTML;
+let timer = null;
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+// --- file selection -----------------------------------------------------------
+
+function showFile() {
+  const file = deck.files && deck.files[0];
+  if (!file) {
+    dropzone.classList.remove('has-file');
+    dzTitle.textContent = IDLE_TITLE;
+    dzSub.innerHTML = IDLE_SUB;
+    return;
+  }
+  dropzone.classList.add('has-file');
+  dzTitle.textContent = file.name;
+  dzSub.innerHTML = `<b>${(file.size / 1048576).toFixed(1)} MB</b> &nbsp;&middot;&nbsp; ready to analyze`;
+}
+
+deck.addEventListener('change', showFile);
+
+['dragenter', 'dragover'].forEach((type) =>
+  dropzone.addEventListener(type, (event) => {
+    event.preventDefault();
+    dropzone.classList.add('dragover');
+  }));
+
+['dragleave', 'dragend', 'drop'].forEach((type) =>
+  dropzone.addEventListener(type, () => dropzone.classList.remove('dragover')));
+
+dropzone.addEventListener('drop', (event) => {
+  event.preventDefault();
+  const files = event.dataTransfer && event.dataTransfer.files;
+  if (files && files.length) {
+    deck.files = files;
+    showFile();
+  }
+});
+
+// --- progress -----------------------------------------------------------------
 
 function renderSteps(step, state) {
   stepsList.innerHTML = STEPS.map((label, i) => {
     let cls = '';
     if (state === 'done' || i < step) cls = 'done';
     else if (i === step && state === 'running') cls = 'active';
-    return `<li class="${cls}">${label}</li>`;
+    return `<li class="${cls}">${escapeHtml(label)}</li>`;
   }).join('');
   const pct = state === 'done' ? 100 : Math.round((step / STEPS.length) * 100);
   fill.style.width = pct + '%';
 }
+
+function startClock() {
+  const began = Date.now();
+  stopClock();
+  timer = setInterval(() => {
+    const secs = Math.floor((Date.now() - began) / 1000);
+    clock.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  }, 1000);
+}
+
+function stopClock() {
+  if (timer) { clearInterval(timer); timer = null; }
+}
+
+function finish(label, buttonText) {
+  stopClock();
+  phase.textContent = label;
+  go.disabled = false;
+  go.textContent = buttonText;
+}
+
+// --- job lifecycle ------------------------------------------------------------
 
 async function poll(id) {
   const res = await fetch(`/jobs/${id}`);
@@ -344,34 +604,46 @@ async function poll(id) {
   renderSteps(job.step, job.state);
 
   if (job.state === 'done') {
-    result.innerHTML = `<div class="done-box">Report ready.<br>
+    result.innerHTML = `<div class="done-box"><strong>Report ready.</strong><br>
       <a class="download" href="${job.download}">Download .docx</a></div>`;
-    go.disabled = false;
-    go.textContent = 'Run another analysis';
+    finish('Complete', 'Run another analysis');
     return;
   }
   if (job.state === 'error') {
-    result.innerHTML = `<div class="error-box"><strong>Analysis failed.</strong>\\n${job.error}</div>`;
-    go.disabled = false;
-    go.textContent = 'Try again';
+    showError(new Error(job.error || 'Analysis failed.'), 'Analysis failed.');
     return;
   }
   setTimeout(() => poll(id).catch(showError), 3000);
 }
 
-function showError(err) {
-  result.innerHTML = `<div class="error-box">${err.message}</div>`;
-  go.disabled = false;
-  go.textContent = 'Try again';
+function showError(err, heading) {
+  const title = heading ? `<strong>${escapeHtml(heading)}</strong><br>` : '';
+  result.innerHTML = `<div class="error-box">${title}${escapeHtml(err.message)}</div>`;
+  finish('Stopped', 'Try again');
 }
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  const file = deck.files && deck.files[0];
+  result.innerHTML = '';
+
+  if (!file) { showError(new Error('Choose a PDF pitch deck first.')); return; }
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    showError(new Error('The deck must be a PDF.'));
+    return;
+  }
+  if (file.size > MAX_BYTES) {
+    showError(new Error(`That deck is ${(file.size / 1048576).toFixed(1)} MB — the limit is ${MAX_BYTES / 1048576} MB.`));
+    return;
+  }
+
   go.disabled = true;
   go.textContent = 'Analyzing…';
-  statusBox.style.display = 'block';
-  result.innerHTML = '';
+  phase.textContent = 'Analyzing';
+  clock.textContent = '0:00';
+  statusBox.classList.add('on');
   renderSteps(0, 'running');
+  startClock();
 
   try {
     const res = await fetch('/analyze', { method: 'POST', body: new FormData(form) });
@@ -382,10 +654,12 @@ form.addEventListener('submit', async (event) => {
     const job = await res.json();
     poll(job.id).catch(showError);
   } catch (err) {
-    showError(err);
+    showError(err, 'Upload failed.');
   }
 });
 </script>
 </body>
 </html>
-""".replace("%%STEPS%%", str(PROGRESS_STEPS).replace("'", '"'))
+""".replace("%%STEPS%%", str(PROGRESS_STEPS).replace("'", '"')).replace(
+    "%%MAX_BYTES%%", str(MAX_PDF_BYTES)
+)
