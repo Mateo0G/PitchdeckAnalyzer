@@ -1,6 +1,6 @@
 # TEN Capital — Pitch Deck Analyzer
 
-Upload a pitch deck PDF → the Claude API runs the Investor Conviction Ladder analysis →
+Upload a pitch deck PDF → the Claude API reviews the deck section by section →
 a branded TEN Capital `.docx` comes back as a download. Deployable to Railway as a web app.
 
 ## Files
@@ -8,35 +8,28 @@ a branded TEN Capital `.docx` comes back as a download. Deployable to Railway as
 | File | Role |
 |---|---|
 | [app.py](app.py) | FastAPI web app — upload page, background jobs, progress polling, download |
-| [analysis.py](analysis.py) | The four-call Claude pipeline; also runs standalone as a CLI |
-| [schemas.py](schemas.py) | JSON schemas for the structured-output calls |
+| [analysis.py](analysis.py) | The Claude pipeline; also runs standalone as a CLI |
+| [schemas.py](schemas.py) | JSON schema for the structured-output call |
 | [report_template.py](report_template.py) | Document structure and formatting — the branded `.docx` builder |
 | [TEMPLATE_STRUCTURE.md](TEMPLATE_STRUCTURE.md) | Human-readable spec of the document and its fields |
 | `TEN_Capital_logo_footer.png` | Footer logo — must ship with the app for the branded footer to render |
 
 ## How the analysis works
 
-Four Claude API calls, each returning **validated JSON** (structured outputs) rather than prose,
-so nothing has to be parsed out of free text. The deck rides along as a **cached document block**
-in every call, so only the first request pays full price for it.
+One Claude API call returning **validated JSON** (structured outputs) rather than prose, so
+nothing has to be parsed out of free text. The deck rides along as a document block.
 
-| # | Call | Produces |
-|---|---|---|
-| 1 | Data readiness | Section 1 — readiness matrix, per-stage PRESENT/PARTIAL/MISSING tables, P1/P2 gaps |
-| 2 | Conviction ladder | Section 2 — the ten stage scores and narratives (call 1's findings are fed in as evidence) |
-| 3 | Deck analysis | Section 2B — section-by-section strengths/weaknesses/recommendations, design notes, revised outline |
-| 4 | Validation check | Section 3 — hallucination audit of calls 1–3 against the deck |
+| Call | Produces |
+|---|---|
+| Deck analysis | Section 1 — section-by-section strengths/weaknesses/recommendations, design notes, revised slide outline |
 
-Model: `claude-opus-5`, adaptive thinking, `effort: high`, streamed. Runs about 4–8 minutes and
-costs roughly $1–3 per deck depending on deck size.
+Model: `claude-opus-5`, adaptive thinking, `effort: high`, streamed. Runs about 2–4 minutes and
+costs roughly $0.50–1 per deck depending on deck size.
 
 **Guardrails between the model and the document.** Model output is reconciled against the
-template's fixed rows before rendering — the ten stages and their required data points, the eleven
-deck sections, the five design dimensions. A dropped, reordered, or reworded row is put back in
-place (a missing data point renders as `MISSING`), so the document always has its full structure.
-The conviction total is **computed** from the stage scores rather than taken from the model, and
-the band label on the title-page banner comes from `CONVICTION_BANDS` in [analysis.py](analysis.py)
-— edit those thresholds to change the wording.
+template's fixed rows before rendering — the eleven deck sections and the five design dimensions.
+A dropped, reordered, or reworded row is put back in place, so the document always has its full
+structure.
 
 ## Run locally
 
@@ -100,8 +93,8 @@ and every upload spends your API credit.
 ## Changing the analysis
 
 - **Document structure or formatting** → [report_template.py](report_template.py); the framework
-  vocabularies (`CONVICTION_STAGES`, `DECK_SECTIONS`, `DESIGN_DIMENSIONS`, `HALLUCINATION_TYPES`)
-  live there and drive the prompts, the schemas, and the rendered document together.
-- **What the model is asked** → the prompt constants in [analysis.py](analysis.py).
+  vocabularies (`DECK_SECTIONS`, `DESIGN_DIMENSIONS`) live there and drive the prompt, the schema,
+  and the rendered document together.
+- **What the model is asked** → `DECK_PROMPT` in [analysis.py](analysis.py).
 - **Shape of the model's answer** → [schemas.py](schemas.py), kept in step with the template's
   data contract.

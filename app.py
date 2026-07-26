@@ -1,10 +1,10 @@
 """
 TEN Capital — Pitch Deck Analyzer (web app)
 
-Upload a pitch deck PDF, the Claude API runs the four-stage conviction analysis,
-and the branded TEN Capital .docx comes back as a download.
+Upload a pitch deck PDF, the Claude API runs the deck analysis, and the branded
+TEN Capital .docx comes back as a download.
 
-Analysis takes several minutes, so uploads start a background job and the page
+Analysis takes a few minutes, so uploads start a background job and the page
 polls for progress rather than holding the request open.
 
 Run locally:
@@ -132,7 +132,7 @@ def _run_job(job: Job, pdf_path: Path) -> None:
 
     job.state, job.message = "running", PROGRESS_STEPS[0]
     try:
-        output = pdf_path.parent / f"{_safe_name(job.company)} - TEN Capital Conviction Analysis.docx"
+        output = pdf_path.parent / f"{_safe_name(job.company)} - TEN Capital Deck Analysis.docx"
         run_analysis(pdf_path, output, company_name=job.company, progress=progress)
         job.output = output
         job.state, job.step = "done", len(PROGRESS_STEPS)
@@ -261,14 +261,16 @@ INDEX_HTML = """
       radial-gradient(560px 420px at 50% 100%, rgba(53,190,187,0.14), transparent 60%);
   }
 
-  .stage{ position:relative; z-index:1; width:100%; max-width:620px; }
+  /* `margin:auto 0` centres vertically the way the mockup does, but never clips
+     the top of the card once the progress panel makes it taller than the viewport. */
+  .stage{ position:relative; z-index:1; width:100%; max-width:620px; margin:auto 0; }
 
   /* brand lockup */
   .brand{ display:flex; align-items:center; gap:12px; margin-bottom:28px; padding-left:4px; }
   .brand-mark{ width:34px; height:34px; flex-shrink:0; }
   .brand-word{
     font-family:'Sora', system-ui, sans-serif; font-weight:800; font-size:15px;
-    letter-spacing:.04em; line-height:1.15; text-transform:uppercase;
+    letter-spacing:.04em; line-height:1.15; text-transform:uppercase; color:var(--ink-100);
   }
   .brand-word span{
     display:block; font-weight:600; font-size:10px; letter-spacing:.22em;
@@ -305,7 +307,7 @@ INDEX_HTML = """
     background:linear-gradient(90deg, var(--coral-soft), var(--amber));
     -webkit-background-clip:text; background-clip:text; color:transparent;
   }
-  .lede{ color:var(--ink-300); font-size:15px; margin:0 0 28px; max-width:46ch; }
+  .lede{ color:var(--ink-300); font-size:15px; line-height:1.6; margin:0 0 32px; max-width:46ch; }
 
   /* fields */
   .field{ margin-bottom:16px; }
@@ -325,7 +327,7 @@ INDEX_HTML = """
   /* dropzone */
   .dropzone{
     display:block; border:1.5px dashed var(--navy-700); border-radius:14px;
-    padding:34px 24px; text-align:center; cursor:pointer;
+    padding:38px 24px; text-align:center; cursor:pointer;
     background:rgba(255,255,255,.015);
     transition:border-color .18s ease, background .18s ease, transform .18s ease;
   }
@@ -346,7 +348,8 @@ INDEX_HTML = """
   .dropzone-icon svg{ width:18px; height:18px; }
   .dropzone-title{ font-size:15px; font-weight:600; margin-bottom:6px; word-break:break-word; }
   .dropzone-sub{
-    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11.5px; color:var(--ink-500);
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:11.5px;
+    color:var(--ink-500); letter-spacing:.01em;
   }
   .dropzone-sub b{ color:var(--ink-300); font-weight:500; }
   .file-input{
@@ -358,7 +361,7 @@ INDEX_HTML = """
     width:100%; margin-top:22px; padding:16px 20px; border:0; border-radius:12px;
     background:linear-gradient(90deg, var(--coral) 0%, var(--coral-soft) 45%, var(--amber) 100%);
     color:#17130E; font-family:'Sora', system-ui, sans-serif; font-weight:700; font-size:15px;
-    cursor:pointer; transition:filter .15s ease, transform .15s ease;
+    letter-spacing:.01em; cursor:pointer; transition:filter .15s ease, transform .15s ease;
     box-shadow:0 10px 24px -10px rgba(238,90,78,.45);
   }
   .cta:hover:not(:disabled){ filter:brightness(1.06); transform:translateY(-1px); }
@@ -459,9 +462,9 @@ INDEX_HTML = """
 
   <div class="card">
     <div class="eyebrow">Deck Analyzer</div>
-    <h1>Pitch Deck<span class="arrow">&rarr;</span><span class="to">Conviction Analysis</span></h1>
-    <p class="lede">Upload a deck and get the branded TEN Capital Investor Conviction Ladder report
-      as a Word document, analyzed and scored by Claude.</p>
+    <h1>Pitch Deck<span class="arrow">&rarr;</span><span class="to">Investor Review</span></h1>
+    <p class="lede">Upload a deck and get the branded TEN Capital review as a Word document —
+      section-by-section strengths, weaknesses, and recommendations from Claude.</p>
 
     <form id="form">
       <div class="field">
@@ -482,7 +485,7 @@ INDEX_HTML = """
         <input class="file-input" type="file" id="deck" name="deck" accept="application/pdf,.pdf" required>
       </label>
 
-      <button class="cta" type="submit" id="go">Run conviction analysis</button>
+      <button class="cta" type="submit" id="go">Run deck analysis</button>
     </form>
 
     <div class="status" id="status" aria-live="polite">
@@ -498,7 +501,7 @@ INDEX_HTML = """
     </div>
   </div>
 
-  <footer>Claude Opus 5 &middot; typically 4&ndash;8 minutes &middot; keep this tab open</footer>
+  <footer>Claude Opus 5 &middot; typically 2&ndash;4 minutes &middot; keep this tab open</footer>
 </div>
 
 <script>
