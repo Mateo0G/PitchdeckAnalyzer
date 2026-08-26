@@ -91,7 +91,7 @@ class Job:
     step: int = 0
     message: str = "Queued"
     error: str = ""
-    output: Path | None = None
+    outputs: dict[str, Path] = field(default_factory=dict)  # {"docx": Path, "pdf": Path}
     created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def as_dict(self) -> dict:
@@ -104,7 +104,11 @@ class Job:
             "steps_total": len(PROGRESS_STEPS),
             "message": self.message,
             "error": self.error,
-            "download": f"/jobs/{self.id}/download" if self.state == "done" else None,
+            "downloads": (
+                {fmt: f"/jobs/{self.id}/download/{fmt}" for fmt in self.outputs}
+                if self.state == "done"
+                else None
+            ),
         }
 
 
@@ -140,9 +144,8 @@ def _run_job(job: Job, pdf_path: Path) -> None:
 
     job.state, job.message = "running", PROGRESS_STEPS[0]
     try:
-        output = pdf_path.parent / f"{_safe_name(job.company)} - TEN Capital Deck Analysis.docx"
-        run_analysis(pdf_path, output, company_name=job.company, progress=progress)
-        job.output = output
+        output_base = pdf_path.parent / f"{_safe_name(job.company)} - TEN Capital Deck Analysis"
+        job.outputs = run_analysis(pdf_path, output_base, company_name=job.company, progress=progress)
         job.state, job.step = "done", len(PROGRESS_STEPS)
         job.message = "Report ready"
     except AnalysisError as exc:
@@ -221,16 +224,21 @@ def job_status(job_id: str, _: None = Depends(require_auth)) -> dict:
     return job.as_dict()
 
 
-@app.get("/jobs/{job_id}/download")
-def job_download(job_id: str, _: None = Depends(require_auth)) -> FileResponse:
+_DOWNLOAD_MEDIA_TYPES = {
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pdf": "application/pdf",
+}
+
+
+@app.get("/jobs/{job_id}/download/{fmt}")
+def job_download(job_id: str, fmt: str, _: None = Depends(require_auth)) -> FileResponse:
+    if fmt not in _DOWNLOAD_MEDIA_TYPES:
+        raise HTTPException(404, "Unknown report format.")
     job = _jobs.get(job_id)
-    if job is None or job.state != "done" or job.output is None or not job.output.exists():
+    output = job.outputs.get(fmt) if job else None
+    if job is None or job.state != "done" or output is None or not output.exists():
         raise HTTPException(404, "No report available for that job.")
-    return FileResponse(
-        job.output,
-        filename=job.output.name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return FileResponse(output, filename=output.name, media_type=_DOWNLOAD_MEDIA_TYPES[fmt])
 
 
 # --- Front end -----------------------------------------------------------------
@@ -414,13 +422,14 @@ INDEX_HTML = """
   }
   .error-box strong{ color:var(--coral-soft); font-family:'Sora', system-ui, sans-serif; }
   a.download{
-    display:inline-block; margin-top:12px; padding:12px 22px; border-radius:10px;
+    display:inline-block; margin-top:12px; margin-right:10px; padding:12px 22px; border-radius:10px;
     background:linear-gradient(90deg, var(--coral) 0%, var(--coral-soft) 45%, var(--amber) 100%);
     color:#17130E; font-family:'Sora', system-ui, sans-serif; font-weight:700;
     font-size:14px; text-decoration:none;
     box-shadow:0 10px 24px -10px rgba(238,90,78,.45);
   }
   a.download:hover{ filter:brightness(1.06); }
+  a.download:last-child{ margin-right:0; }
 
   .disclosure{
     margin-top:22px; padding-top:18px; border-top:1px solid var(--navy-700);
@@ -460,7 +469,7 @@ INDEX_HTML = """
   <div class="card">
     <div class="eyebrow">Deck Analyzer</div>
     <h1>Pitch Deck<span class="arrow">&rarr;</span><span class="to">Investor Review</span></h1>
-    <p class="lede">Upload a deck and get the branded TEN Capital review as a Word document —
+    <p class="lede">Upload a deck and get the branded TEN Capital review as a Word document or PDF —
       section-by-section strengths, weaknesses, and recommendations from Claude.</p>
 
     <form id="form">
@@ -494,7 +503,8 @@ INDEX_HTML = """
 
     <div class="disclosure">
       The deck is processed on the server and deleted as soon as the report is built.
-      Finished reports stay downloadable for a limited time — save the <code>.docx</code> when it appears.
+      Finished reports stay downloadable for a limited time — save the <code>.docx</code> or
+      <code>.pdf</code> when it appears.
     </div>
   </div>
 
@@ -604,8 +614,11 @@ async function poll(id) {
   renderSteps(job.step, job.state);
 
   if (job.state === 'done') {
-    result.innerHTML = `<div class="done-box"><strong>Report ready.</strong><br>
-      <a class="download" href="${job.download}">Download .docx</a></div>`;
+    const labels = { docx: 'Download .docx', pdf: 'Download .pdf' };
+    const links = Object.entries(job.downloads || {})
+      .map(([fmt, href]) => `<a class="download" href="${href}">${labels[fmt] || `Download .${fmt}`}</a>`)
+      .join('');
+    result.innerHTML = `<div class="done-box"><strong>Report ready.</strong><br>${links}</div>`;
     finish('Complete', 'Run another analysis');
     return;
   }
