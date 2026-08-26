@@ -25,7 +25,7 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas as pdfcanvas
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from report_template import (
     ACCENT_STRIP,
@@ -174,14 +174,16 @@ class _BrandedCanvas(pdfcanvas.Canvas):
 # --- section builders ---------------------------------------------------------
 
 
-def _title_page(data: dict) -> list:
+def _header_block(data: dict) -> list:
+    """Compact header — company, document title, source, date — sitting directly
+    atop Section 1 rather than on its own mostly-blank cover page."""
     return [
-        Spacer(1, 0.9 * inch),
+        Spacer(1, 0.15 * inch),
         Paragraph(data["company_name"].upper(), TITLE_STYLE),
         Paragraph(data["document_title"], SUBTITLE_STYLE),
         Paragraph(f"Source: {data['source']}", META_STYLE),
         Paragraph(f"{data['date']}  |  Prepared by TEN Capital Network", META_STYLE),
-        PageBreak(),
+        Spacer(1, 6),
     ]
 
 
@@ -241,7 +243,7 @@ def build_report_pdf(output_path: Path | str, data: dict) -> Path:
         title=f"{data['company_name']} — {data['document_title']}",
     )
 
-    story = _title_page(data) + _section_1_deck_analysis(data, usable_width)
+    story = _header_block(data) + _section_1_deck_analysis(data, usable_width)
 
     canvasmaker = functools.partial(_BrandedCanvas, compiled_on=data["date"])
     doc.build(story, canvasmaker=canvasmaker)

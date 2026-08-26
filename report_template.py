@@ -15,9 +15,9 @@ Usage
     ...
     build_report(Path("out.docx"), data)
 
-Document map (page breaks marked ⏎)
------------------------------------
-    Title page      Company / Document title / Source / Date                        ⏎
+Document map
+------------
+    Header block    Company / Document title / Source / Date
     SECTION 1 — PITCH DECK ANALYSIS: STRENGTHS, WEAKNESSES & RECOMMENDATIONS
         1.1  Section-by-Section Assessment  Section | Strengths | Weaknesses | Recs
         1.2  Formatting, Storytelling & Design Recommendations
@@ -31,7 +31,7 @@ from typing import Iterable, Sequence
 
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
@@ -197,10 +197,6 @@ def body_paragraph(doc: Document, text: str, *, bold_prefix: str | None = None):
     return para
 
 
-def page_break(doc: Document) -> None:
-    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-
-
 # --- Fixed document furniture ------------------------------------------------
 
 
@@ -277,7 +273,10 @@ def _add_page_number(run) -> None:
         run._r.append(element)
 
 
-def title_page(doc: Document, data: dict) -> None:
+def header_block(doc: Document, data: dict) -> None:
+    """Compact centred header — company, document title, source, date — sitting
+    directly atop Section 1 rather than on its own mostly-blank cover page."""
+
     def centred(text: str, size: Pt, color: str, bold: bool, after: int):
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -288,11 +287,10 @@ def title_page(doc: Document, data: dict) -> None:
         run.font.bold = bold
         run.font.color.rgb = RGBColor.from_string(color)
 
-    doc.add_paragraph()
-    centred(data["company_name"].upper(), SIZE_TITLE, NAVY, True, 10)
-    centred(data["document_title"], SIZE_SUBTITLE, TEAL, False, 8)
-    centred(f"Source: {data['source']}", SIZE_META, GREY, False, 15)
-    centred(f"{data['date']}  |  Prepared by TEN Capital Network", SIZE_META, GREY, False, 20)
+    centred(data["company_name"].upper(), SIZE_TITLE, NAVY, True, 8)
+    centred(data["document_title"], SIZE_SUBTITLE, TEAL, False, 6)
+    centred(f"Source: {data['source']}", SIZE_META, GREY, False, 2)
+    centred(f"{data['date']}  |  Prepared by TEN Capital Network", SIZE_META, GREY, False, 14)
 
 
 # --- Section builders ---------------------------------------------------------
@@ -346,9 +344,7 @@ def build_report(output_path: Path | str, data: dict) -> Path:
 
     _add_header_accent(doc)
 
-    title_page(doc, data)
-    page_break(doc)
-
+    header_block(doc, data)
     section_1_deck_analysis(doc, data)
 
     _add_footer(doc, data["document_title"], data["date"])

@@ -119,6 +119,40 @@ def _call(
         raise AnalysisError(f"{label}: model returned invalid JSON ({exc}).") from exc
 
 
+def _incomplete_deck_result(result: dict) -> str | None:
+    """None if `result` has every row the template needs; else a description of
+    what's short. The JSON schema can't enforce minItems, so a model that returns
+    a thin `section_assessment` (e.g. one row) still passes schema validation —
+    this is the check that actually catches it before it reaches the document."""
+    assessed = result.get("section_assessment", [])
+    if len(assessed) < len(DECK_SECTIONS):
+        return f"section_assessment had {len(assessed)} of {len(DECK_SECTIONS)} sections"
+    design = result.get("design_recommendations", [])
+    if len(design) < len(DESIGN_DIMENSIONS):
+        return f"design_recommendations had {len(design)} of {len(DESIGN_DIMENSIONS)} dimensions"
+    if not result.get("revised_outline"):
+        return "revised_outline was empty"
+    return None
+
+
+def _call_deck_analysis(client: anthropic.Anthropic, pdf_block: dict) -> dict[str, Any]:
+    """`_call` for Section 1, retrying once if the model shortchanges the fixed
+    rows the template requires (schema constraints alone don't guarantee that)."""
+    prompt = DECK_PROMPT
+    for attempt in range(2):
+        result = _call(client, pdf_block, prompt, DECK_SCHEMA, "Section 1")
+        gap = _incomplete_deck_result(result)
+        if gap is None:
+            return result
+        if attempt == 0:
+            prompt = (
+                f"{DECK_PROMPT}\n\nYour previous response was incomplete ({gap}). Return every "
+                "row listed above — one `section_assessment` row per deck section and one "
+                "`design_recommendations` entry per label, in the given order. Do not omit any."
+            )
+    raise AnalysisError(f"Section 1: model output stayed incomplete after a retry ({gap}).")
+
+
 # --- Reconciling model output with the template's fixed rows -------------------
 
 
@@ -190,7 +224,7 @@ def analyze_deck(
     data["date"] = date.today().strftime("%B %d, %Y")
 
     step(1)
-    _apply_deck(data, _call(client, pdf_block, DECK_PROMPT, DECK_SCHEMA, "Section 1"))
+    _apply_deck(data, _call_deck_analysis(client, pdf_block))
 
     problems = validate_report_data(data)
     if problems:
