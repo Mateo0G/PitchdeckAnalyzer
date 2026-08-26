@@ -22,6 +22,7 @@ Environment:
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 import secrets
@@ -47,6 +48,13 @@ JOB_TTL = timedelta(minutes=int(os.getenv("JOB_TTL_MINUTES", "180")))
 MAX_CONCURRENT = int(os.getenv("MAX_CONCURRENT_JOBS", "2"))
 
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
+
+_LOGO_PATH = Path(__file__).parent / "TEN_Capital_logo_footer.png"
+LOGO_DATA_URI = (
+    "data:image/png;base64," + base64.b64encode(_LOGO_PATH.read_bytes()).decode()
+    if _LOGO_PATH.exists()
+    else ""
+)
 
 app = FastAPI(title="TEN Capital — Pitch Deck Analyzer")
 _executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT)
@@ -266,16 +274,13 @@ INDEX_HTML = """
   .stage{ position:relative; z-index:1; width:100%; max-width:620px; margin:auto 0; }
 
   /* brand lockup */
-  .brand{ display:flex; align-items:center; gap:12px; margin-bottom:28px; padding-left:4px; }
-  .brand-mark{ width:34px; height:34px; flex-shrink:0; }
-  .brand-word{
-    font-family:'Sora', system-ui, sans-serif; font-weight:800; font-size:15px;
-    letter-spacing:.04em; line-height:1.15; text-transform:uppercase; color:var(--ink-100);
+  .brand{ margin-bottom:24px; }
+  .logo-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:96px; height:52px; border-radius:12px; background:#fff;
+    box-shadow:0 12px 24px -12px rgba(0,0,0,.5);
   }
-  .brand-word span{
-    display:block; font-weight:600; font-size:10px; letter-spacing:.22em;
-    color:var(--ink-500); margin-top:2px;
-  }
+  .logo-badge img{ max-width:76%; max-height:68%; display:block; }
 
   .card{
     background:linear-gradient(180deg, var(--navy-900) 0%, var(--navy-800) 100%);
@@ -338,11 +343,11 @@ INDEX_HTML = """
 
   .dropzone-icon{
     width:38px; height:38px; margin:0 auto 14px; border-radius:10px;
-    background:linear-gradient(135deg, rgba(238,90,78,.16), rgba(243,162,42,.16));
+    background:rgba(255,255,255,.04);
     border:1px solid var(--navy-700); display:flex; align-items:center; justify-content:center;
   }
   .dropzone.has-file .dropzone-icon{
-    background:linear-gradient(135deg, rgba(53,190,187,.22), rgba(53,190,187,.10));
+    background:rgba(53,190,187,.14);
     border-color:rgba(53,190,187,.4);
   }
   .dropzone-icon svg{ width:18px; height:18px; }
@@ -449,15 +454,7 @@ INDEX_HTML = """
 <div class="stage">
 
   <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M50 6 C64 6 74 16 74 16" stroke="var(--amber)" stroke-width="11" stroke-linecap="round" fill="none"/>
-      <path d="M76 66 C76 82 63 92 63 92" stroke="var(--teal)" stroke-width="11" stroke-linecap="round" fill="none"/>
-      <path d="M24 66 C24 82 37 92 37 92" stroke="var(--coral)" stroke-width="11" stroke-linecap="round" fill="none" transform="rotate(180 50 79)"/>
-      <circle cx="50" cy="20" r="11" fill="var(--amber)"/>
-      <circle cx="78" cy="68" r="11" fill="var(--teal)"/>
-      <circle cx="22" cy="68" r="11" fill="var(--coral)"/>
-    </svg>
-    <div class="brand-word">Ten Capital<span>Network</span></div>
+    <span class="logo-badge"><img src="%%LOGO%%" alt="TEN Capital Network"></span>
   </div>
 
   <div class="card">
@@ -665,4 +662,4 @@ form.addEventListener('submit', async (event) => {
 </html>
 """.replace("%%STEPS%%", str(PROGRESS_STEPS).replace("'", '"')).replace(
     "%%MAX_BYTES%%", str(MAX_PDF_BYTES)
-)
+).replace("%%LOGO%%", LOGO_DATA_URI)
