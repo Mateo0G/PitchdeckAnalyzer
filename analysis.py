@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 import anthropic
 
+from pdf_template import build_report_pdf
 from report_template import (
     DECK_SECTIONS,
     DESIGN_DIMENSIONS,
@@ -200,27 +201,36 @@ def analyze_deck(
 
 def run_analysis(
     pdf_path: Path | str,
-    output_path: Path | str,
+    output_base: Path | str,
     company_name: str | None = None,
     progress: Callable[[int, str], None] | None = None,
-) -> Path:
-    """Analyze the deck and write the branded TEN Capital .docx."""
+) -> dict[str, Path]:
+    """Analyze the deck and write the branded TEN Capital report as .docx and .pdf.
+
+    `output_base` is the shared stem (its suffix, if any, is ignored) — the two
+    files are written alongside it as `<stem>.docx` and `<stem>.pdf`.
+    """
     data = analyze_deck(pdf_path, company_name=company_name, progress=progress)
     if progress:
         progress(2, PROGRESS_STEPS[2])
-    return build_report(output_path, data)
+    base = Path(output_base).with_suffix("")
+    return {
+        "docx": build_report(base.with_suffix(".docx"), data),
+        "pdf": build_report_pdf(base.with_suffix(".pdf"), data),
+    }
 
 
-if __name__ == "__main__":  # CLI: python analysis.py deck.pdf [output.docx]
+if __name__ == "__main__":  # CLI: python analysis.py deck.pdf [output-base]
     import sys
 
     if len(sys.argv) < 2:
-        raise SystemExit("usage: python analysis.py <deck.pdf> [output.docx]")
+        raise SystemExit("usage: python analysis.py <deck.pdf> [output-base]")
     deck = Path(sys.argv[1])
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else deck.with_name(
-        f"{deck.stem} - TEN Capital Deck Analysis.docx"
+        f"{deck.stem} - TEN Capital Deck Analysis"
     )
     written = run_analysis(
         deck, out, progress=lambda i, label: print(f"[{i + 1}/{len(PROGRESS_STEPS)}] {label}", flush=True)
     )
-    print(f"Saved {written}")
+    for fmt, path in written.items():
+        print(f"Saved {fmt}: {path}")
