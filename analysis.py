@@ -31,7 +31,7 @@ from report_template import (
 from schemas import DECK_SCHEMA
 
 MODEL = "claude-opus-5"
-MAX_TOKENS = 32000  # streamed, so no HTTP-timeout concern
+MAX_TOKENS = 64000  # streamed, so no HTTP-timeout concern
 EFFORT = "high"
 MAX_PDF_BYTES = 32 * 1024 * 1024  # API limit on a base64 document block
 
@@ -55,20 +55,23 @@ section-by-section assessment of what is working, what is hurting investor perce
 specifically to change.
 
 RULES:
-- Return exactly one `section_assessment` row for each of these deck sections, in this order:
+- `section_assessment` MUST contain exactly {len(DECK_SECTIONS)} rows, one per deck section below,
+  in this order — do not stop early, do not summarize instead of listing every row:
   {", ".join(DECK_SECTIONS)}.
   If a section is absent from the deck, say so in `strengths` (e.g. "N/A — not present in the
   deck") and treat its absence as the weakness.
 - `strengths`, `weaknesses`, and `recommendations` are each two to four sentences. Recommendations
   must be concrete and actionable — name the slide to add, the data to cite, or the language to
   use, including example wording where it helps.
-- Return exactly one `design_recommendations` entry for each of these labels, in this order:
-  {", ".join(DESIGN_DIMENSIONS)}. Each `text` is two to four sentences on that dimension as it
-  applies to this deck specifically.
+- `design_recommendations` MUST contain exactly {len(DESIGN_DIMENSIONS)} entries, one per label
+  below, in this order: {", ".join(DESIGN_DIMENSIONS)}. Each `text` is two to four sentences on
+  that dimension as it applies to this deck specifically.
 - `revised_outline`: a proposed slide-by-slide running order optimizing the investor narrative,
   numbered from 1. One line of content per slide. Aim for 14–18 slides.
 - Cite what is actually in the deck. Where you draw on outside market knowledge (for example
   naming competitors that do not appear in the deck), make that explicit in the text.
+- Producing every row for every section and label matters more than depth on any single one — if
+  you are running low on room, shorten individual entries rather than omitting rows.
 """
 
 
@@ -99,6 +102,7 @@ def _call(
     with client.messages.stream(
         model=MODEL,
         max_tokens=MAX_TOKENS,
+        thinking={"type": "adaptive"},
         output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": schema}},
         messages=[{"role": "user", "content": [pdf_block, {"type": "text", "text": prompt}]}],
     ) as stream:
